@@ -44,7 +44,6 @@ class local_backup_gateway_external extends external_api {
         return new external_function_parameters(
                 array(
                         'search' => new external_value(PARAM_CLEAN, 'search'),
-                        'email' => new external_value(PARAM_EMAIL, 'email'),
                 )
         );
     }
@@ -57,29 +56,34 @@ class local_backup_gateway_external extends external_api {
      * @param string $search The text to search on
      * @return array All courses found
      */
-    public static function find_courses($search, $email) {
+    public static function find_courses($search) {
         global $DB;
 
         // Validate parameters passed from web service.
-        $params = self::validate_parameters(self::find_courses_parameters(), array('search' => $search, 'email' => $email));
+        $params = self::validate_parameters(self::find_courses_parameters(), array('search' => $search));
 
         // Capability check.
         if (!has_capability('moodle/course:viewhiddencourses', context_system::instance())) {
             return false;
         }
 
-        $user = $DB->get_record('user', array('email' => $params['email']));
-        $courses = enrol_get_users_courses($user->id);
-        $output = array();
-
-        foreach ($courses as $course) {
-            if ((strpos($course->shortname, $search) !== false || strpos($course->fullname, $search) !== false ||
-                    strpos($course->idnumber, $search) !== false)) {
-                $output[] = $course;
-            }
+        // Build query.
+        $searchsql    = '';
+        $searchparams = array();
+        $searchlikes = array();
+        $searchfields = array('c.shortname', 'c.fullname', 'c.idnumber');
+        for ($i = 0; $i < count($searchfields); $i++) {
+            $searchlikes[$i] = $DB->sql_like($searchfields[$i], ":s{$i}", false, false);
+            $searchparams["s{$i}"] = '%' . $search . '%';
         }
+        // We exclude the front page.
+        $searchsql = '(' . implode(' OR ', $searchlikes) . ') AND c.id != 1';
 
-        return $output;
+        // Run query.
+        $fields = 'c.id,c.idnumber,c.shortname,c.fullname';
+        $sql = "SELECT $fields FROM {course} c WHERE $searchsql ORDER BY c.shortname ASC";
+        $courses = $DB->get_records_sql($sql, $searchparams, 0);
+        return $courses;
     }
 
     /**
