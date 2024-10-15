@@ -69,13 +69,36 @@ class local_backup_gateway_external extends external_api {
         }
 
         $user = $DB->get_record('user', array('email' => $params['email']));
-        $courses = enrol_get_users_courses($user->id);
-        $output = array();
 
-        foreach ($courses as $course) {
-            if ((strpos($course->shortname, $search) !== false || strpos($course->fullname, $search) !== false ||
-                    strpos($course->idnumber, $search) !== false)) {
-                $output[] = $course;
+        if (is_siteadmin($user)) {
+            // Build query.
+            $searchsql = '';
+            $searchparams = array();
+            $searchlikes = array();
+            $searchfields = array('c.shortname', 'c.fullname', 'c.idnumber');
+            for ($i = 0; $i < count($searchfields); $i++) {
+                $searchlikes[$i] = $DB->sql_like($searchfields[$i], ":s{$i}", false, false);
+                $searchparams["s{$i}"] = '%' . $search . '%';
+            }
+            // We exclude the front page.
+            $searchsql = '(' . implode(' OR ', $searchlikes) . ') AND c.id != 1';
+
+            // Run query.
+            $fields = 'c.id,c.idnumber,c.shortname,c.fullname';
+            $sql = "SELECT $fields FROM {course} c WHERE $searchsql ORDER BY c.shortname ASC";
+            $courses = $DB->get_records_sql($sql, $searchparams, 0);
+
+            return $courses;
+
+        } else {
+            $courses = enrol_get_users_courses($user->id);
+            $output = array();
+
+            foreach ($courses as $course) {
+                if ((strpos($course->shortname, $search) !== false || strpos($course->fullname, $search) !== false ||
+                        strpos($course->idnumber, $search) !== false)) {
+                    $output[] = $course;
+                }
             }
         }
 
