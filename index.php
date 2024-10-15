@@ -61,7 +61,7 @@ if (!empty($search)) {
     $user = $DB->get_record('user', array('id' => $USER->id));
     $url = $remotesite . '/webservice/rest/server.php?wstoken=' . $token .
             '&wsfunction=local_backup_gateway_find_courses&moodlewsrestformat=json';
-    $params = array('search' => $search);
+    $params = array('search' => $search, 'email' => $user->email);
 
     $curl = new curl;
     $results = json_decode($curl->post($url, $params, $options));
