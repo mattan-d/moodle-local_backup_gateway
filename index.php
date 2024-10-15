@@ -124,11 +124,11 @@ if (!empty($data)) {
 }
 
 // Show the search form.
-/*$mform = new local_backup_gateway_search_form();
+$mform = new local_backup_gateway_search_form();
 if (!$mform->is_cancelled()) {
     $toform = new stdClass();
     $toform->id = $id;
     $mform->set_data($toform);
     $mform->display();
-}*/
+}
 echo $OUTPUT->footer();
